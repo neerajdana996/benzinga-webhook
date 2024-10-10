@@ -136,3 +136,14 @@ go test ./... -v
 - **BATCH_INTERVAL**: Time interval between batch sends.
 - **POST_ENDPOINT**: The external endpoint where the batch is sent.
 
+
+
+## Refactor project structure, add Docker support, and update tests
+
+- Refactored service initialization to use a variadic `customBatchSize` in `InitService` for optional batch size.
+- Implemented middleware to inject `ServiceConfig` into Gin context, making it accessible across handlers.
+- Updated test cases to use `setupRouter` helper, reducing code duplication and ensuring `ServiceConfig` is passed in the context.
+- Added multi-stage Dockerfile for more efficient builds, reducing final image size.
+- Created `docker-compose.yml` to manage the application with Docker Compose, including environment variable management and port configuration.
+- Modified the tests for the `LogHandler` and `HealthzHandler` to work with the new context-based config handling.
+- Updated the README with Docker instructions, environment variable setup, and testing instructions.
