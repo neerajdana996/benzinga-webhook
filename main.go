@@ -3,12 +3,13 @@ package main
 
 import (
 	"benzinga/webhook/controllers"
+	"benzinga/webhook/middleware"
 	"benzinga/webhook/services"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -16,14 +17,19 @@ func main() {
     if err != nil {
         log.Fatal("Error loading .env file")
     }
-	gin.SetMode(gin.ReleaseMode)
-    // Initialize services
-    services.InitService()
-
-    // Set up Gin and logging
+    ginMode := os.Getenv("GIN_MODE") // Fetch GIN_MODE from env
+    gin.SetMode(ginMode) 
     router := gin.Default()
-    logrus.SetFormatter(&logrus.JSONFormatter{})
-    logrus.Info("Starting application...")
+    // Initialize services
+    config := services.InitService(5) // Initialize the service with a default batch size of 5
+    router.Use(func(c *gin.Context) {
+        // Set config in Gin context
+        c.Set("config", config)
+        c.Next()
+    })
+    // Set up Gin and logging
+   
+    router.Use(middleware.RequestLogger())
 
     // Define routes
     router.GET("/healthz", controllers.HealthzHandler)

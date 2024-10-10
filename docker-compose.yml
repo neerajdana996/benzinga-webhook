@@ -2,16 +2,15 @@ version: "3.8"
 
 services:
   webhook-app:
-    image: webhook-app:latest
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"   # Expose the application's port
-    env_file:
+      - "8080:8080"   # Expose port 8080
+    env_file: 
       - .env          # Load environment variables from .env file
     environment:
-      GIN_MODE: "release"   # Set GIN to release mode for production
+      - GIN_MODE=release  # Set Gin mode to release
     volumes:
-      - .:/app         # Mount current directory to the container (optional if you want live reload)
+      - .:/app         # Mount the current directory to /app in the container (optional for development)
     command: ["./main"]

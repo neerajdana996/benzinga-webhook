@@ -1,4 +1,3 @@
-// services/log_service.go
 package services
 
 import (
@@ -13,39 +12,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var cache []models.Payload
-var batchSize int
-var postEndpoint string
-var GIN_MODE string
-
-func InitServiceForTest(customBatchSize int) {
-    batchSize = customBatchSize
-    cache = []models.Payload{}
-    postEndpoint = "https://eodlt9jg5ag9bze.m.pipedream.net" // Mock endpoint for testing,
-	GIN_MODE = "release"
-}
+// ServiceConfig holds the configuration for batch processing
 
 // AddToCache adds a payload to the in-memory cache
-func AddToCache(payload models.Payload) {
-    cache = append(cache, payload)
+func AddToCache(payload models.Payload, config *ServiceConfig) {
+    config.Cache = append(config.Cache, payload)
 
-    if len(cache) >= batchSize {
-        sendBatch()
+    if len(config.Cache) >= config.BatchSize {
+        sendBatch(config)
     }
 }
 
 // sendBatch sends the batched payloads to the external endpoint
-func sendBatch() {
-    if len(cache) == 0 {
+func sendBatch(config *ServiceConfig) {
+    if len(config.Cache) == 0 {
         return
     }
 
     logrus.WithFields(logrus.Fields{
-        "batch_size": len(cache),
+        "batch_size": len(config.Cache),
     }).Info("Sending batch...")
 
     // Serialize cache to JSON
-    jsonData, err := json.Marshal(cache)
+    jsonData, err := json.Marshal(config.Cache)
     if err != nil {
         logrus.WithError(err).Error("Failed to serialize batch")
         return
@@ -54,10 +43,10 @@ func sendBatch() {
     // Retry logic
     success := false
     for i := 0; i < 3; i++ {
-        resp, err := http.Post(postEndpoint, "application/json", bytes.NewBuffer(jsonData))
+        resp, err := http.Post(config.PostEndpoint, "application/json", bytes.NewBuffer(jsonData))
         if err == nil && resp.StatusCode == http.StatusOK {
             logrus.WithFields(logrus.Fields{
-                "batch_size": len(cache),
+                "batch_size": len(config.Cache),
                 "status":     resp.StatusCode,
             }).Info("Batch successfully sent")
             success = true
@@ -66,7 +55,7 @@ func sendBatch() {
 
         logrus.WithFields(logrus.Fields{
             "attempt": i + 1,
-        }).Warn("Failed to send batch, retrying...",err)
+        }).Warnf("Failed to send batch, retrying... %v", err)
         time.Sleep(2 * time.Second)
     }
 
@@ -76,7 +65,7 @@ func sendBatch() {
     }
 
     // Clear cache after successful send
-    cache = []models.Payload{}
+    config.Cache = []models.Payload{}
 }
 
 // Helper functions to get environment variables with defaults

@@ -3,7 +3,6 @@ package controllers
 import (
 	"benzinga/webhook/models"
 	"benzinga/webhook/services"
-
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -14,12 +13,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Helper function to initialize the Gin router with middleware
+func setupRouter(config *services.ServiceConfig) *gin.Engine {
+    router := gin.Default()
+    
+    // Middleware to inject config into the Gin context
+    router.Use(func(c *gin.Context) {
+        c.Set("config", config)
+        c.Next()
+    })
 
+    // Define routes
+    router.GET("/healthz", HealthzHandler)
+    router.POST("/log", LogHandler)
+    
+    return router
+}
 
 func TestHealthzHandler(t *testing.T) {
     // Set up the Gin context and recorder
-    router := gin.Default()
-    router.GET("/healthz", HealthzHandler)
+    router := setupRouter(services.InitService(5)) // Use the InitService function to create config
 
     req, _ := http.NewRequest("GET", "/healthz", nil)
     w := httptest.NewRecorder()
@@ -33,9 +46,8 @@ func TestHealthzHandler(t *testing.T) {
 }
 
 func TestLogHandler_ValidPayload(t *testing.T) {
-	services.InitServiceForTest(3)
-    router := gin.Default()
-    router.POST("/log", LogHandler)
+    config := services.InitService(3) // Initialize the service with a batch size of 3
+    router := setupRouter(config)
 
     payload := models.Payload{
         UserID:    1,
@@ -57,8 +69,8 @@ func TestLogHandler_ValidPayload(t *testing.T) {
 }
 
 func TestLogHandler_InvalidPayload(t *testing.T) {
-    router := gin.Default()
-    router.POST("/log", LogHandler)
+    config := services.InitService(3) // Initialize the service with a batch size of 3
+    router := setupRouter(config)
 
     invalidJSON := `{"user_id": "invalid"}` // invalid JSON (user_id should be int)
     req, _ := http.NewRequest("POST", "/log", bytes.NewBuffer([]byte(invalidJSON)))
